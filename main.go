@@ -72,7 +72,8 @@ func GenerateTestingFile (fileTest FileTest) (testingFile string) {
             testStr := strings.Join(test, ", ")
             funcStr := name + "(" + testStr + ")"
             iStr := strconv.Itoa(i)
-            testingFile += "    t.Run(\"" + iStr + "\", func (t *testing.T) { " + funcStr + " })\n"
+            testingFile +=
+                "    t.Run(\"" + iStr + "\", func (t *testing.T) { defer func () { if recover() != nil { t.Fail() } }(); " + funcStr + " })\n"
         }
         testingFile += "}"
     }
