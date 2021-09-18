@@ -6,4 +6,5 @@ func f (x, y int, z string) int {
 }
 
 func g (a string) {
+    if len(a) > 15 { panic(a) }
 }

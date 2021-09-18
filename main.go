@@ -9,6 +9,8 @@ import (
     "math/rand"
     "strconv"
     "os"
+    "io/ioutil"
+    "regexp"
 )
 
 type FuncTest []string
@@ -64,27 +66,43 @@ func GenerateFileTest (testedFile string, funcTestAmt int) (fileTest FileTest) {
     return
 }
 
-func GenerateTestingFile (fileTest FileTest) (testingFile string) {
-    testingFile = "package test1\n\nimport \"testing\""
+func GenerateTestingCode (packageName string, fileTest FileTest) (testingCode string) {
+    testingCode = "package " + packageName + "\n\nimport \"testing\""
     for name, tests := range fileTest {
-        testingFile += "\n\nfunc Test_" + name + " (t *testing.T) {\n"
+        testingCode += "\n\nfunc Test_" + name + " (t *testing.T) {\n"
         for i, test := range tests {
             testStr := strings.Join(test, ", ")
             funcStr := name + "(" + testStr + ")"
             iStr := strconv.Itoa(i)
-            testingFile +=
+            testingCode +=
                 "    t.Run(\"" + iStr + "\", func (t *testing.T) { defer func () { if recover() != nil { t.Fail() } }(); " + funcStr + " })\n"
         }
-        testingFile += "}"
+        testingCode += "}"
     }
     return
 }
 
+func TakePackageName (fileName string) string {
+    fset := token.NewFileSet()
+    file, _ := parser.ParseFile(fset, fileName, nil, parser.PackageClauseOnly)
+    return file.Name.Name
+}
+
 func main () {
-    testedFile := "test-files/test1.go"
-    fileTest := GenerateFileTest(testedFile, 5)
-    testingFile := GenerateTestingFile(fileTest)
-    file, _ := os.OpenFile("test-files/test1_test.go", os.O_WRONLY|os.O_CREATE, 0644)
-    defer file.Close()
-    file.WriteString(testingFile)
+    dirName := "test-files/"
+    files, _ := ioutil.ReadDir(dirName)
+    for _, file := range files {
+        fileName := file.Name()
+        match_go, _ := regexp.MatchString(`.*\.go$`, fileName)
+        match_test, _ := regexp.MatchString(`.*_test\.go$`, fileName)
+        if match_go && ! match_test {
+            testedFile := dirName + fileName
+            packageName := TakePackageName (testedFile)
+            fileTest := GenerateFileTest(testedFile, 5)
+            testingCode := GenerateTestingCode(packageName, fileTest)
+            testingFile, _ := os.OpenFile(dirName + fileName[:len(fileName)-3] + "_test.go", os.O_WRONLY|os.O_CREATE, 0644)
+            defer testingFile.Close()
+            testingFile.WriteString(testingCode)
+        }
+    }
 }
